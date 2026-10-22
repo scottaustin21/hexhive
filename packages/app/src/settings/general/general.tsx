@@ -1,7 +1,8 @@
-import { Component, Show, createMemo, createResource } from "solid-js"
+import { Component, For, Show, createMemo, createResource } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Select } from "@opencode/ui/select"
 import { Switch } from "@opencode/ui/switch"
+import { Popover } from "@kobalte/core/popover"
 import { TimelineDetailControl } from "@/settings/timeline-detail"
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform } from "@/runtime/platform/platform"
@@ -15,7 +16,8 @@ import {
 import { formatKeybind } from "@/shell/commands/command"
 import { SettingsList } from "@/settings/list"
 import { SettingsRow } from "@/settings/row"
-import { createShellOptions, type ShellSettingsController } from "./controllers"
+import { createShellOptions, createSubagentModelController, type ShellSettingsController, type SubagentModelSettingsController } from "./controllers"
+import { useServer } from "@/runtime/server/current"
 import "@/settings/settings.css"
 
 const tabLayoutOptions: ("horizontal" | "vertical")[] = ["horizontal", "vertical"]
@@ -99,6 +101,71 @@ export const ShellSetting: Component<{ controller: ShellSettingsController }> = 
         }}
         onSelect={(option) => option && props.controller.select(option.value)}
       />
+    </SettingsRow>
+  )
+}
+
+const SubagentModelSetting: Component<{ controller: SubagentModelSettingsController }> = (props) => {
+  const language = useLanguage()
+
+  const options = createMemo(() => props.controller.options())
+
+  return (
+    <SettingsRow
+      title={language.t("settings.general.row.subagentModel.title")}
+      description={language.t("settings.general.row.subagentModel.description")}
+    >
+      <Popover gutter={6} placement="bottom-end">
+        <Popover.Trigger>
+          <button
+            type="button"
+            data-action="settings-subagent-model"
+            class="rounded-lg px-3 py-1.5 text-start text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <Show
+              when={props.controller.current()}
+              fallback={language.t("settings.general.row.subagentModel.default")}
+            >
+              {(model) => {
+                const item = options().find((o) => o.current)
+
+                return item ? item.name : `${model().providerID}:${model().model}`
+              }}
+            </Show>
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            class="min-w-[220px] max-h-[320px] overflow-y-auto rounded-lg border border-v2-border-subtle bg-v2-background-surface p-1 shadow-lg"
+          >
+            <div class="px-2 py-1.5">
+              <button
+                type="button"
+                class="w-full rounded-md px-2 py-1.5 text-start text-sm hover:bg-v2-overlay-simple-overlay-hover"
+                classList={{ "bg-v2-overlay-simple-overlay-hover": !props.controller.current() }}
+                onClick={() => props.controller.select(null)}
+              >
+                {language.t("settings.general.row.subagentModel.default")}
+              </button>
+            </div>
+            <div class="border-t border-v2-border-subtle" />
+            <div class="max-h-[260px] overflow-y-auto">
+              <For each={options()}>
+                {(option) => (
+                  <button
+                    type="button"
+                    class="w-full rounded-md px-2 py-1.5 text-start text-sm hover:bg-v2-overlay-simple-overlay-hover"
+                    classList={{ "bg-v2-overlay-simple-overlay-hover": option.current }}
+                    onClick={() => props.controller.select(option)}
+                  >
+                    {option.name}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover>
     </SettingsRow>
   )
 }
@@ -223,6 +290,9 @@ export const SettingsGeneral: Component = () => {
   const settings = useSettings()
   const mobile = createMediaQuery("(max-width: 767px)")
   const desktop = createMemo(() => platform.platform === "desktop")
+  const server = useServer()
+
+  const subagentModelController = createSubagentModelController(server)
 
   const [pinchZoom, { mutate: setPinchZoom }] = createResource(
     () => desktop() && "getPinchZoomEnabled" in platform,
@@ -262,6 +332,8 @@ export const SettingsGeneral: Component = () => {
 
         <TerminalPlacementSetting />
         <FollowUpBehaviorSetting />
+
+        <SubagentModelSetting controller={subagentModelController} />
 
         <Show when={desktop()}>
           <SettingsRow

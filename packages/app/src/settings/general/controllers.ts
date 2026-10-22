@@ -19,10 +19,149 @@ import { ServerConnection } from "@/runtime/server/registry"
 import { useServerCtx } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { showToast } from "@/shell/notifications/toast"
+import { useProviders } from "@/providers/catalog/providers"
+import { useModels } from "@/providers/models/models"
+import { Schema } from "effect"
+import { Predicate } from "effect"
 
 export { createShellOptions, createSoundPreviewController } from "./behavior"
 
 export type { ShellOption, ShellSelectOption } from "./behavior"
+
+const ConfigModelSelectionSchema = Schema.Struct({
+  providerID: Schema.String,
+  model: Schema.String,
+  variant: Schema.optional(Schema.String),
+})
+
+type ConfigModelSelection = typeof ConfigModelSelectionSchema.Type
+
+export type SubagentModelOption = {
+  providerID: string
+  modelID: string
+  name: string
+  current: boolean
+}
+
+export function createSubagentModelController(server: Accessor<ServerConnection.Any>) {
+  const language = useLanguage()
+  const serverCtx = useServerCtx(server)
+  const source = () => ServerConnection.key(server())
+  const providers = useProviders(() => serverCtx().sdk.scope.directory)
+  const models = useModels()
+
+  const [state, actions] = createResource(
+    source,
+    async () => {
+      const context = serverCtx()
+
+      const [entries, shells] = await Promise.all([
+        context.sdk.api.config.get().catch(() => []),
+        context.sdk.api.config.shells().catch(() => []),
+      ])
+
+      const boundary = entries.findIndex((entry) => entry.type === "directory")
+      const global = boundary === -1 ? entries : entries.slice(0, boundary)
+
+      const subagentModel = global
+        .flatMap((entry) => (entry.type === "document" && entry.info.subagent?.model !== undefined ? [entry.info.subagent.model] : []))
+        .at(-1)
+
+      return {
+        shells,
+        shell: global
+          .flatMap((entry) => (entry.type === "document" && entry.info.shell !== undefined ? [entry.info.shell] : []))
+          .at(-1),
+        subagentModel: subagentModel ? ConfigModelSelectionSchema.make(subagentModel) : undefined,
+      }
+    },
+    { initialValue: { shells: [], shell: undefined, subagentModel: undefined as ConfigModelSelection | undefined } },
+  )
+
+  const currentSelection = () => {
+    const model = state.latest.subagentModel
+
+    if (!model) return undefined
+
+    return { providerID: model.providerID, modelID: model.model }
+  }
+
+  const options = createMemo(() => {
+    const connected = providers.connected()
+    const result: SubagentModelOption[] = []
+
+    for (const provider of connected) {
+      for (const [id, info] of Object.entries(provider.models)) {
+        const selection = { providerID: provider.id, modelID: id }
+        const item = models.find(selection)
+
+        if (!item) continue
+        result.push({
+          providerID: provider.id,
+          modelID: id,
+          name: item.name,
+          current: Predicate.isBoolean(state.latest.subagentModel)
+            ? false
+            : state.latest.subagentModel?.providerID === provider.id && state.latest.subagentModel?.model === id,
+        })
+      }
+    }
+
+    return result
+  })
+
+  return {
+    current: () => state.latest.subagentModel,
+    currentName: () => {
+      const model = state.latest.subagentModel
+
+      if (!model) return language.t("settings.general.row.subagentModel.default")
+
+      const item = models.find({ providerID: model.providerID, modelID: model.model })
+
+      return item?.name ?? `${model.providerID}:${model.model}`
+    },
+    options,
+    select: (option: SubagentModelOption | null) => {
+      const previous = state.latest.subagentModel
+
+      if (option) {
+        const selection: ConfigModelSelection = {
+          providerID: option.providerID,
+          model: option.modelID,
+        }
+
+        actions.mutate({ ...previous, subagentModel: selection })
+
+        void serverCtx()
+          .sdk.api.config.update({ subagent: { model: selection } })
+          .catch((error: unknown) => {
+            actions.mutate(previous)
+            showToast({
+              variant: "error",
+              title: language.t("common.requestFailed"),
+              description: error instanceof Error ? error.message : language.t("common.requestFailed"),
+            })
+          })
+      } else {
+        actions.mutate({ ...previous, subagentModel: undefined })
+
+        void serverCtx()
+          .sdk.api.config.update({ subagent: { model: null } })
+          .catch((error: unknown) => {
+            actions.mutate(previous)
+            showToast({
+              variant: "error",
+              title: language.t("common.requestFailed"),
+              description: error instanceof Error ? error.message : language.t("common.requestFailed"),
+            })
+          })
+      }
+    },
+  }
+}
+
+export type SubagentModelSettingsController = ReturnType<typeof createSubagentModelController>
 
 export function createServerShellController(server: Accessor<ServerConnection.Any>) {
   const language = useLanguage()

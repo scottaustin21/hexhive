@@ -952,6 +952,10 @@ export const dict = {
   "settings.models.enableAll": "Enable all models",
   "settings.models.disableAll": "Disable all models",
 
+  "settings.general.row.subagentModel.title": "Subagent model",
+  "settings.general.row.subagentModel.description": "Default model for background subagent sessions",
+  "settings.general.row.subagentModel.default": "Default (inherits from session)",
+
   "settings.permissions.tool.read.title": "Read",
   "settings.permissions.tool.read.description": "Reading a file (matches the file path)",
   "settings.permissions.tool.edit.title": "Edit",
