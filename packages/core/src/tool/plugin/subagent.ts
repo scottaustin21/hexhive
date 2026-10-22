@@ -181,7 +181,7 @@ export const Plugin = {
                 )
               }
 
-              const model = override ?? agent.model ?? parent.model
+              const model = override ?? agent.model ?? Config.latest(yield* config.entries(), "subagent")?.model ?? parent.model
               const child =
                 existing ??
                 (yield* sessions

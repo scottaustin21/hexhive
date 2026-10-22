@@ -2358,6 +2358,7 @@ export type ConfigEntry =
             effect: "allow" | "deny"
           }>
         }
+        subagent?: { model?: string | { providerID: string; model: string; variant?: string } }
       }
     }
   | { type: "directory"; path: AbsolutePath }
@@ -6061,6 +6062,19 @@ export type ConfigGetOutput = Array<ConfigEntry>
 
 export type ConfigShellsOutput = Array<ConfigShellOption>
 
-export type ConfigUpdateInput = { readonly shell: { readonly shell: string | null }["shell"] }
+export type ConfigUpdateInput = {
+  readonly shell: {
+    readonly shell: string | null
+    readonly subagent?: {
+      readonly model: string | { readonly providerID: string; readonly model: string; readonly variant?: string } | null
+    }
+  }["shell"]
+  readonly subagent?: {
+    readonly shell: string | null
+    readonly subagent?: {
+      readonly model: string | { readonly providerID: string; readonly model: string; readonly variant?: string } | null
+    }
+  }["subagent"]
+}
 
 export type ConfigUpdateOutput = void

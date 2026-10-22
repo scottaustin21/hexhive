@@ -2331,7 +2331,7 @@ export function make(options: ClientOptions) {
           {
             method: "PATCH",
             path: `/api/experimental/config`,
-            body: { shell: input["shell"] },
+            body: { shell: input["shell"], subagent: input["subagent"] },
             successStatus: 204,
             declaredStatuses: [400, 401, 404],
             empty: true,

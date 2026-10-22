@@ -111,10 +111,24 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   providers: Schema.Record(Schema.String, ConfigProvider.Info).pipe(optional),
   experimental: ConfigExperimental.Info.pipe(optional),
+  subagent: Schema.Struct({
+    model: ConfigModel.Selection.pipe(optional).annotate({
+      description: "Default model to use when spawning subagents",
+    }),
+  })
+    .pipe(optional)
+    .annotate({
+      description: "Subagent behavior configuration",
+    }),
 }) {}
 
 export const Patch = Schema.Struct({
   shell: Schema.NullOr(Schema.String),
+  subagent: Schema.Struct({
+    model: Schema.NullOr(ConfigModel.Selection),
+  }).pipe(optional).annotate({
+    description: "Subagent configuration updates",
+  }),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

@@ -2337,7 +2337,18 @@ export type ConfigShellsOutput = ReadonlyArray<{
 }>
 export type ConfigShellsOperation<E = never> = () => Effect.Effect<ConfigShellsOutput, E>
 
-export type ConfigUpdateInput = { readonly shell: string | null }
+export type ConfigUpdateInput = {
+  readonly shell: string | null
+  readonly subagent?:
+    | {
+        readonly model: {
+          readonly providerID: string
+          readonly model: string
+          readonly variant?: string | undefined
+        } | null
+      }
+    | undefined
+}
 export type ConfigUpdateOutput = void
 export type ConfigUpdateOperation<E = never> = (input: ConfigUpdateInput) => Effect.Effect<ConfigUpdateOutput, E>
 

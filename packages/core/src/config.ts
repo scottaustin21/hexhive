@@ -3,7 +3,7 @@ export * as Config from "./config.js"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
 import path from "path"
 import { isDeepStrictEqual } from "node:util"
-import { applyEdits, modify, type ParseError, parse } from "jsonc-parser"
+import { modify, type ParseError, parse } from "jsonc-parser"
 import { Context, Effect, FiberMap, Layer, Option, PubSub, Ref, Schema, Semaphore, Stream } from "effect"
 import { Directory, Document, Info, type Patch, type Entry, Event } from "@opencode/schema/config"
 import { Credential } from "./credential.js"
@@ -387,13 +387,21 @@ export const layer = (options?: Options) =>
             (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "opencode.jsonc")
           const text = (yield* fs.readFileStringSafe(filepath)) ?? "{}\n"
           const updated = yield* Effect.try({
-            try: () =>
-              applyEdits(
-                text,
-                modify(text, ["shell"], patch.shell ?? undefined, {
+            try: () => {
+              let text1 = modify(text, ["shell"], patch.shell ?? undefined, {
+                formattingOptions: { tabSize: 2, insertSpaces: true },
+              })
+              const text2 =
+                typeof text1 === "string" ? text1 : applyEdits(text, text1 as import("jsonc-parser").Edit[])
+              let result = text2
+              if (patch.subagent !== undefined) {
+                let text3 = modify(text2, ["subagent"], patch.subagent.model ?? undefined, {
                   formattingOptions: { tabSize: 2, insertSpaces: true },
-                }),
-              ),
+                })
+                result = typeof text3 === "string" ? text3 : applyEdits(text2, text3 as import("jsonc-parser").Edit[])
+              }
+              return result
+            },
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
           })
           yield* fs.writeWithDirs(filepath, updated.endsWith("\n") ? updated : `${updated}\n`)
