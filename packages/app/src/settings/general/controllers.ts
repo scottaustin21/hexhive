@@ -176,6 +176,7 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
           .sdk.api.config.update({ subagent: { model: selection } })
           .catch((error: unknown) => {
             state.mutate(previous)
+            console.error("Failed to update subagent model:", error)
             showToast({
               variant: "error",
               title: language.t("common.requestFailed"),
@@ -189,6 +190,7 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
           .sdk.api.config.update({ subagent: { model: null } })
           .catch((error: unknown) => {
             state.mutate(previous)
+            console.error("Failed to clear subagent model:", error)
             showToast({
               variant: "error",
               title: language.t("common.requestFailed"),
