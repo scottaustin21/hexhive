@@ -133,6 +133,7 @@ const SubagentModelSetting: Component<{ controller: SubagentModelSettingsControl
         value={(option) => `${option.providerID}:${option.modelID}`}
         label={(option) => option.name}
         onSelect={(option) => props.controller.select(option ?? null)}
+        placeholder={language.t("settings.general.row.subagentModel.default")}
         children={(option) => (
           <div class="flex items-center gap-2">
             <Show when={option.current}>
@@ -141,9 +142,7 @@ const SubagentModelSetting: Component<{ controller: SubagentModelSettingsControl
             <span>{option.name}</span>
           </div>
         )}
-      >
-        {language.t("settings.general.row.subagentModel.default")}
-      </Select>
+      />
     </SettingsRow>
   )
 }
