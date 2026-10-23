@@ -17,6 +17,7 @@ import { playSoundById, SOUND_OPTIONS } from "@/shell/notifications/sound"
 import { createSoundPreviewController } from "./behavior"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useServerCtx } from "@/runtime/server/runtime"
+import { normalizeProviderList } from "@/runtime/server/global-sync/utils"
 import { useLanguage } from "@/runtime/i18n/language"
 import { showToast } from "@/shell/notifications/toast"
 import { Schema } from "effect"
@@ -81,17 +82,14 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
     if (!ctx) return result
 
     const providers = ctx.data.location.provider.list()
-
-    if (!providers) return result
-
     const models = ctx.data.location.model.list()
 
-    if (!models) return result
+    if (!providers || !models) return result
 
-    for (const provider of providers.values()) {
-      const providerModels = models.get(provider.id) ?? {}
+    const normalized = normalizeProviderList(providers, models)
 
-      for (const [id, modelInfo] of Object.entries(providerModels)) {
+    for (const provider of normalized.all.values()) {
+      for (const [id, modelInfo] of Object.entries(provider.models)) {
         result.push({
           providerID: provider.id,
           modelID: id,
@@ -117,15 +115,19 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
 
       if (!ctx) return `${model.providerID}:${model.model}`
 
+      const providers = ctx.data.location.provider.list()
       const models = ctx.data.location.model.list()
 
-      if (!models) return `${model.providerID}:${model.model}`
+      if (!providers || !models) return `${model.providerID}:${model.model}`
 
-      const providerModels = models.get(model.providerID) ?? {}
+      const normalized = normalizeProviderList(providers, models)
+      const provider = normalized.all.get(model.providerID)
 
-      const item = providerModels[model.model]
+      if (!provider) return `${model.providerID}:${model.model}`
 
-      return item?.name ?? `${model.providerID}:${model.model}`
+      const modelInfo = provider.models[model.model]
+
+      return modelInfo?.name ?? `${model.providerID}:${model.model}`
     },
     options,
     select: (option: SubagentModelOption | null) => {
