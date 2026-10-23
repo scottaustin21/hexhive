@@ -179,7 +179,7 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
         setState("subagentModel", selection)
 
         void serverCtx()
-          .sdk.api.config.update({ subagent: { model: selection } })
+          .sdk.api.config.update({ shell: null, subagent: { model: selection } })
           .catch((error: unknown) => {
             setState("subagentModel", previous)
             console.error("Failed to update subagent model:", error)
@@ -193,7 +193,7 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
         setState("subagentModel", undefined)
 
         void serverCtx()
-          .sdk.api.config.update({ subagent: { model: null } })
+          .sdk.api.config.update({ shell: null, subagent: { model: null } })
           .catch((error: unknown) => {
             setState("subagentModel", previous)
             console.error("Failed to clear subagent model:", error)
