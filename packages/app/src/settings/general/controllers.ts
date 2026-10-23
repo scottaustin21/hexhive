@@ -16,7 +16,7 @@ import {
 import { playSoundById, SOUND_OPTIONS } from "@/shell/notifications/sound"
 import { createSoundPreviewController } from "./behavior"
 import { ServerConnection } from "@/runtime/server/registry"
-import { useServerCtx } from "@/runtime/server/runtime"
+import { useServerCtx, useGlobal } from "@/runtime/server/runtime"
 import { normalizeProviderList } from "@/runtime/server/global-sync/utils"
 import { useLanguage } from "@/runtime/i18n/language"
 import { showToast } from "@/shell/notifications/toast"
@@ -45,6 +45,7 @@ export type SubagentModelOption = {
 export function createSubagentModelController(server: Accessor<ServerConnection.Any>) {
   const language = useLanguage()
   const serverCtx = useServerCtx(server)
+  const global = useGlobal()
 
   const [state] = createResource(
     () => ServerConnection.key(server()),
@@ -74,6 +75,26 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
     { initialValue: { shells: [], shell: undefined, subagentModel: undefined as ConfigModelSelection | undefined } },
   )
 
+  const visibilityMap = createMemo(() => {
+    const map = new Map<string, string>()
+
+    for (const item of global.models.store.user) {
+      map.set(`${item.providerID}:${item.modelID}`, item.visibility)
+    }
+
+    return map
+  })
+
+  const isModelVisible = (providerID: string, modelID: string) => {
+    const key = `${providerID}:${modelID}`
+    const state = visibilityMap.get(key)
+
+    if (state === "hide") return false
+    if (state === "show") return true
+
+    return true
+  }
+
   const options = createMemo(() => {
     const result: SubagentModelOption[] = []
 
@@ -93,6 +114,8 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
         const rawModel = models.find((m) => m.providerID === provider.id && m.modelID === id)
 
         if (!rawModel?.enabled) continue
+
+        if (!isModelVisible(provider.id, id)) continue
 
         result.push({
           providerID: provider.id,
