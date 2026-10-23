@@ -17,7 +17,8 @@ import { formatKeybind } from "@/shell/commands/command"
 import { SettingsList } from "@/settings/list"
 import { SettingsRow } from "@/settings/row"
 import { createShellOptions, createSubagentModelController, type ShellSettingsController, type SubagentModelSettingsController } from "./controllers"
-import { useServer } from "@/runtime/server/current"
+import { useGlobal } from "@/runtime/server/runtime"
+import { ServerConnection } from "@/runtime/server/registry"
 import "@/settings/settings.css"
 
 const tabLayoutOptions: ("horizontal" | "vertical")[] = ["horizontal", "vertical"]
@@ -290,9 +291,10 @@ export const SettingsGeneral: Component = () => {
   const settings = useSettings()
   const mobile = createMediaQuery("(max-width: 767px)")
   const desktop = createMemo(() => platform.platform === "desktop")
-  const server = useServer()
+  const servers = useGlobal().servers.list
+  const server = createMemo(() => servers()[0] ?? undefined)
 
-  const subagentModelController = createSubagentModelController(server)
+  const subagentModelController = createSubagentModelController(() => server() as ServerConnection.Any)
 
   const [pinchZoom, { mutate: setPinchZoom }] = createResource(
     () => desktop() && "getPinchZoomEnabled" in platform,
