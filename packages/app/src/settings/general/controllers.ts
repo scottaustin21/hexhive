@@ -47,7 +47,17 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
   const serverCtx = useServerCtx(server)
   const global = useGlobal()
 
-  const [state] = createResource(
+  const [state, setState] = createStore<{
+    shells: unknown[]
+    shell: string | undefined
+    subagentModel: ConfigModelSelection | undefined
+  }>({
+    shells: [],
+    shell: undefined,
+    subagentModel: undefined,
+  })
+
+  createResource(
     () => ServerConnection.key(server()),
     async () => {
       const context = serverCtx()
@@ -64,15 +74,10 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
         .flatMap((entry) => (entry.type === "document" && entry.info.subagent?.model !== undefined ? [entry.info.subagent.model] : []))
         .at(-1)
 
-      return {
-        shells,
-        shell: configGlobal
-          .flatMap((entry) => (entry.type === "document" && entry.info.shell !== undefined ? [entry.info.shell] : []))
-          .at(-1),
-        subagentModel: subagentModel ? ConfigModelSelectionSchema.make(subagentModel) : undefined,
-      }
+      setState("shells", shells)
+      setState("shell", configGlobal.flatMap((entry) => (entry.type === "document" && entry.info.shell !== undefined ? [entry.info.shell] : [])).at(-1))
+      setState("subagentModel", subagentModel ? ConfigModelSelectionSchema.make(subagentModel) : undefined)
     },
-    { initialValue: { shells: [], shell: undefined, subagentModel: undefined as ConfigModelSelection | undefined } },
   )
 
   const visibilityMap = createMemo(() => {
@@ -91,12 +96,12 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
     if (!map) return true
 
     const key = `${providerID}:${modelID}`
-    const state = map.get(key)
+    const stateValue = map.get(key)
 
-    if (state === "hide") return false
+    if (stateValue === "hide") return false
 
     // Only show models that are explicitly toggled on
-    return state === "show"
+    return stateValue === "show"
   }
 
   const options = createMemo(() => {
@@ -125,9 +130,9 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
           providerID: provider.id,
           modelID: id,
           name: modelInfo.name,
-          current: Predicate.isBoolean(state.latest.subagentModel)
+          current: Predicate.isBoolean(state.subagentModel)
             ? false
-            : state.latest.subagentModel?.providerID === provider.id && state.latest.subagentModel?.model === id,
+            : state.subagentModel?.providerID === provider.id && state.subagentModel?.model === id,
         })
       }
     }
@@ -136,9 +141,9 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
   })
 
   return {
-    current: () => state.latest.subagentModel,
+    current: () => state.subagentModel,
     currentName: () => {
-      const model = state.latest.subagentModel
+      const model = state.subagentModel
 
       if (!model) return language.t("settings.general.row.subagentModel.default")
 
@@ -162,7 +167,7 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
     },
     options,
     select: (option: SubagentModelOption | null) => {
-      const previous = state.latest.subagentModel
+      const previous = state.subagentModel
 
       if (option) {
         const selection: ConfigModelSelection = {
@@ -170,12 +175,12 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
           model: option.modelID,
         }
 
-        state.mutate({ ...previous, subagentModel: selection })
+        setState("subagentModel", selection)
 
         void serverCtx()
           .sdk.api.config.update({ subagent: { model: selection } })
           .catch((error: unknown) => {
-            state.mutate(previous)
+            setState("subagentModel", previous)
             console.error("Failed to update subagent model:", error)
             showToast({
               variant: "error",
@@ -184,12 +189,12 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
             })
           })
       } else {
-        state.mutate({ ...previous, subagentModel: undefined })
+        setState("subagentModel", undefined)
 
         void serverCtx()
           .sdk.api.config.update({ subagent: { model: null } })
           .catch((error: unknown) => {
-            state.mutate(previous)
+            setState("subagentModel", previous)
             console.error("Failed to clear subagent model:", error)
             showToast({
               variant: "error",
