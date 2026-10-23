@@ -1,4 +1,5 @@
 import { createMemo, createResource, onMount, type Accessor } from "solid-js"
+import { createStore } from "solid-js/store"
 import type { ColorScheme } from "@opencode/ui/theme/context"
 import { useTheme } from "@opencode/ui/theme/context"
 import {
