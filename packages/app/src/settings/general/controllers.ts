@@ -1,4 +1,4 @@
-import { createMemo, createResource, type Accessor } from "solid-js"
+import { createMemo, createResource, onMount, type Accessor } from "solid-js"
 import type { ColorScheme } from "@opencode/ui/theme/context"
 import { useTheme } from "@opencode/ui/theme/context"
 import {
@@ -86,8 +86,12 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
   })
 
   const isModelVisible = (providerID: string, modelID: string) => {
+    const map = visibilityMap()
+
+    if (!map) return true
+
     const key = `${providerID}:${modelID}`
-    const state = visibilityMap.get(key)
+    const state = map.get(key)
 
     if (state === "hide") return false
     if (state === "show") return true
