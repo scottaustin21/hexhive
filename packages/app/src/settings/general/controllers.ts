@@ -1,4 +1,4 @@
-import { createMemo, createResource, onMount, type Accessor } from "solid-js"
+import { createMemo, createResource, type Accessor } from "solid-js"
 import type { ColorScheme } from "@opencode/ui/theme/context"
 import { useTheme } from "@opencode/ui/theme/context"
 import {
@@ -16,11 +16,9 @@ import {
 import { playSoundById, SOUND_OPTIONS } from "@/shell/notifications/sound"
 import { createSoundPreviewController } from "./behavior"
 import { ServerConnection } from "@/runtime/server/registry"
-import { useServerCtx } from "@/runtime/server/runtime"
+import { useServerCtx, useGlobal } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { showToast } from "@/shell/notifications/toast"
-import { useProviders } from "@/providers/catalog/providers"
-import { useModels } from "@/providers/models/models"
 import { Schema } from "effect"
 import { Predicate } from "effect"
 
@@ -46,12 +44,10 @@ export type SubagentModelOption = {
 export function createSubagentModelController(server: Accessor<ServerConnection.Any>) {
   const language = useLanguage()
   const serverCtx = useServerCtx(server)
-  const source = () => ServerConnection.key(server())
-  const providers = useProviders(() => serverCtx().sdk.scope.directory)
-  const models = useModels()
+  const global = useGlobal()
 
-  const [state, actions] = createResource(
-    source,
+  const [state] = createResource(
+    () => ServerConnection.key(server()),
     async () => {
       const context = serverCtx()
 
@@ -61,15 +57,15 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
       ])
 
       const boundary = entries.findIndex((entry) => entry.type === "directory")
-      const global = boundary === -1 ? entries : entries.slice(0, boundary)
+      const configGlobal = boundary === -1 ? entries : entries.slice(0, boundary)
 
-      const subagentModel = global
+      const subagentModel = configGlobal
         .flatMap((entry) => (entry.type === "document" && entry.info.subagent?.model !== undefined ? [entry.info.subagent.model] : []))
         .at(-1)
 
       return {
         shells,
-        shell: global
+        shell: configGlobal
           .flatMap((entry) => (entry.type === "document" && entry.info.shell !== undefined ? [entry.info.shell] : []))
           .at(-1),
         subagentModel: subagentModel ? ConfigModelSelectionSchema.make(subagentModel) : undefined,
@@ -78,22 +74,20 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
     { initialValue: { shells: [], shell: undefined, subagentModel: undefined as ConfigModelSelection | undefined } },
   )
 
-  const currentSelection = () => {
-    const model = state.latest.subagentModel
-
-    if (!model) return undefined
-
-    return { providerID: model.providerID, modelID: model.model }
-  }
-
   const options = createMemo(() => {
-    const connected = providers.connected()
+    const providersList = global.servers.list()
     const result: SubagentModelOption[] = []
 
-    for (const provider of connected) {
-      for (const [id, info] of Object.entries(provider.models)) {
+    const serverConnection = server()
+
+    if (!serverConnection) return result
+
+    for (const provider of providersList) {
+      const models = provider.models ?? {}
+
+      for (const [id, info] of Object.entries(models)) {
         const selection = { providerID: provider.id, modelID: id }
-        const item = models.find(selection)
+        const item = global.models.find(selection)
 
         if (!item) continue
         result.push({
@@ -117,7 +111,7 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
 
       if (!model) return language.t("settings.general.row.subagentModel.default")
 
-      const item = models.find({ providerID: model.providerID, modelID: model.model })
+      const item = global.models.find({ providerID: model.providerID, modelID: model.model })
 
       return item?.name ?? `${model.providerID}:${model.model}`
     },
@@ -131,12 +125,12 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
           model: option.modelID,
         }
 
-        actions.mutate({ ...previous, subagentModel: selection })
+        state.mutate({ ...previous, subagentModel: selection })
 
         void serverCtx()
           .sdk.api.config.update({ subagent: { model: selection } })
           .catch((error: unknown) => {
-            actions.mutate(previous)
+            state.mutate(previous)
             showToast({
               variant: "error",
               title: language.t("common.requestFailed"),
@@ -144,12 +138,12 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
             })
           })
       } else {
-        actions.mutate({ ...previous, subagentModel: undefined })
+        state.mutate({ ...previous, subagentModel: undefined })
 
         void serverCtx()
           .sdk.api.config.update({ subagent: { model: null } })
           .catch((error: unknown) => {
-            actions.mutate(previous)
+            state.mutate(previous)
             showToast({
               variant: "error",
               title: language.t("common.requestFailed"),

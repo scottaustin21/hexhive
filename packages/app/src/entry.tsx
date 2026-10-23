@@ -10,29 +10,14 @@ import { createWebPlatform } from "@/runtime/platform/web"
 import { isStandalone, PwaRoutePersistence, restorePwaRoute } from "@/runtime/platform/pwa"
 import { KeyboardInsets } from "@/runtime/platform/keyboard"
 import en from "@/runtime/i18n/en"
-import zh from "@/runtime/i18n/zh"
 import { authFromToken } from "@/runtime/server/api"
 import pkg from "../package.json"
 import { ServerConnection } from "@/runtime/server/registry"
 
-const getLocale = () => {
-  if (typeof navigator === "undefined") return "en" as const
-  const languages = navigator.languages?.length ? navigator.languages : [navigator.language]
-
-  for (const language of languages) {
-    if (!language) continue
-
-    if (language.toLowerCase().startsWith("zh")) return "zh" as const
-  }
-
-  return "en" as const
-}
-
 const getRootNotFoundError = () => {
   const key = "error.dev.rootNotFound" as const
-  const locale = getLocale()
 
-  return locale === "zh" ? (zh[key] ?? en[key]) : en[key]
+  return en[key]
 }
 
 const root = document.getElementById("root")
