@@ -94,9 +94,9 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
     const state = map.get(key)
 
     if (state === "hide") return false
-    if (state === "show") return true
 
-    return true
+    // Only show models that are explicitly toggled on
+    return state === "show"
   }
 
   const options = createMemo(() => {
