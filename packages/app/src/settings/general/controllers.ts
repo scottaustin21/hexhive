@@ -16,7 +16,7 @@ import {
 import { playSoundById, SOUND_OPTIONS } from "@/shell/notifications/sound"
 import { createSoundPreviewController } from "./behavior"
 import { ServerConnection } from "@/runtime/server/registry"
-import { useServerCtx, useGlobal } from "@/runtime/server/runtime"
+import { useServerCtx } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { showToast } from "@/shell/notifications/toast"
 import { Schema } from "effect"
@@ -44,7 +44,6 @@ export type SubagentModelOption = {
 export function createSubagentModelController(server: Accessor<ServerConnection.Any>) {
   const language = useLanguage()
   const serverCtx = useServerCtx(server)
-  const global = useGlobal()
 
   const [state] = createResource(
     () => ServerConnection.key(server()),
@@ -75,25 +74,28 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
   )
 
   const options = createMemo(() => {
-    const providersList = global.servers.list()
     const result: SubagentModelOption[] = []
 
-    const serverConnection = server()
+    const ctx = serverCtx()
 
-    if (!serverConnection) return result
+    if (!ctx) return result
 
-    for (const provider of providersList) {
-      const models = provider.models ?? {}
+    const providers = ctx.data.location.provider.list()
 
-      for (const [id, info] of Object.entries(models)) {
-        const selection = { providerID: provider.id, modelID: id }
-        const item = global.models.find(selection)
+    if (!providers) return result
 
-        if (!item) continue
+    const models = ctx.data.location.model.list()
+
+    if (!models) return result
+
+    for (const provider of providers.values()) {
+      const providerModels = models.get(provider.id) ?? {}
+
+      for (const [id, modelInfo] of Object.entries(providerModels)) {
         result.push({
           providerID: provider.id,
           modelID: id,
-          name: item.name,
+          name: modelInfo.name,
           current: Predicate.isBoolean(state.latest.subagentModel)
             ? false
             : state.latest.subagentModel?.providerID === provider.id && state.latest.subagentModel?.model === id,
@@ -111,7 +113,17 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
 
       if (!model) return language.t("settings.general.row.subagentModel.default")
 
-      const item = global.models.find({ providerID: model.providerID, modelID: model.model })
+      const ctx = serverCtx()
+
+      if (!ctx) return `${model.providerID}:${model.model}`
+
+      const models = ctx.data.location.model.list()
+
+      if (!models) return `${model.providerID}:${model.model}`
+
+      const providerModels = models.get(model.providerID) ?? {}
+
+      const item = providerModels[model.model]
 
       return item?.name ?? `${model.providerID}:${model.model}`
     },
