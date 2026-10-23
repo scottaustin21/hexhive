@@ -90,6 +90,10 @@ export function createSubagentModelController(server: Accessor<ServerConnection.
 
     for (const provider of normalized.all.values()) {
       for (const [id, modelInfo] of Object.entries(provider.models)) {
+        const rawModel = models.find((m) => m.providerID === provider.id && m.modelID === id)
+
+        if (!rawModel?.enabled) continue
+
         result.push({
           providerID: provider.id,
           modelID: id,

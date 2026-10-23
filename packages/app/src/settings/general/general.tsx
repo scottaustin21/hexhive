@@ -111,62 +111,39 @@ const SubagentModelSetting: Component<{ controller: SubagentModelSettingsControl
 
   const options = createMemo(() => props.controller.options())
 
+  const current = createMemo(() => {
+    const model = props.controller.current()
+
+    if (!model) return undefined
+
+    return options().find((o) => o.providerID === model.providerID && o.modelID === model.model)
+  })
+
   return (
     <SettingsRow
       title={language.t("settings.general.row.subagentModel.title")}
       description={language.t("settings.general.row.subagentModel.description")}
     >
-      <Popover gutter={6} placement="bottom-end">
-        <Popover.Trigger>
-          <button
-            type="button"
-            data-action="settings-subagent-model"
-            class="rounded-lg px-3 py-1.5 text-start text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          >
-            <Show
-              when={props.controller.current()}
-              fallback={language.t("settings.general.row.subagentModel.default")}
-            >
-              {(model) => {
-                const item = options().find((o) => o.current)
-
-                return item ? item.name : `${model().providerID}:${model().model}`
-              }}
+      <Select
+        data-action="settings-subagent-model"
+        options={options()}
+        current={current()}
+        placement="bottom-end"
+        gutter={6}
+        value={(option) => `${option.providerID}:${option.modelID}`}
+        label={(option) => option.name}
+        onSelect={(option) => props.controller.select(option ?? null)}
+        children={(option) => (
+          <div class="flex items-center gap-2">
+            <Show when={option.current}>
+              <span class="text-v2-text-text-subtle">✓</span>
             </Show>
-          </button>
-        </Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
-            class="min-w-[220px] max-h-[320px] overflow-y-auto rounded-lg border border-v2-border-subtle bg-v2-background-surface p-1 shadow-lg"
-          >
-            <div class="px-2 py-1.5">
-              <button
-                type="button"
-                class="w-full rounded-md px-2 py-1.5 text-start text-sm hover:bg-v2-overlay-simple-overlay-hover"
-                classList={{ "bg-v2-overlay-simple-overlay-hover": !props.controller.current() }}
-                onClick={() => props.controller.select(null)}
-              >
-                {language.t("settings.general.row.subagentModel.default")}
-              </button>
-            </div>
-            <div class="border-t border-v2-border-subtle" />
-            <div class="max-h-[260px] overflow-y-auto">
-              <For each={options()}>
-                {(option) => (
-                  <button
-                    type="button"
-                    class="w-full rounded-md px-2 py-1.5 text-start text-sm hover:bg-v2-overlay-simple-overlay-hover"
-                    classList={{ "bg-v2-overlay-simple-overlay-hover": option.current }}
-                    onClick={() => props.controller.select(option)}
-                  >
-                    {option.name}
-                  </button>
-                )}
-              </For>
-            </div>
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover>
+            <span>{option.name}</span>
+          </div>
+        )}
+      >
+        {language.t("settings.general.row.subagentModel.default")}
+      </Select>
     </SettingsRow>
   )
 }
